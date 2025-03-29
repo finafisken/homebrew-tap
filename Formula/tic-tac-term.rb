@@ -6,7 +6,7 @@ class TicTacTerm < Formula
   version "0.1.3"
   
   def install
-    bin.install "tic-tac-term"
+    bin.install "tic-tac-term-macos" => "tic-tac-term"
   end
   
   test do
