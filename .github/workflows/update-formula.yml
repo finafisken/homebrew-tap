@@ -1,0 +1,74 @@
+name: Update Homebrew Formula
+
+on:
+  schedule:
+    - cron: '0 10 * * *'  # Runs at 10:00 UTC every day
+  workflow_dispatch:       # Allows manual triggering
+
+jobs:
+  update-formula:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Git
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+
+      - name: Check for updates and modify formula
+        id: check-update
+        run: |
+          FORMULA_PATH="Formula/tic-tac-term.rb"
+          REPO_OWNER="finafisken"
+          REPO_NAME="tic-tac-term"
+          GITHUB_API="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
+          
+          echo "Checking for updates to $REPO_NAME..."
+          
+          # Get latest release info
+          LATEST_RELEASE=$(curl -s $GITHUB_API)
+          LATEST_VERSION=$(echo $LATEST_RELEASE | jq -r '.tag_name' | sed 's/^v//')
+          DOWNLOAD_URL=$(echo $LATEST_RELEASE | jq -r '.assets[] | select(.name | contains("macos")) | .browser_download_url')
+          
+          # Get current version from formula
+          CURRENT_VERSION=$(grep -o 'version "[^"]*' $FORMULA_PATH | sed 's/version "//' | sed 's/"//')
+          
+          echo "Current version: $CURRENT_VERSION"
+          echo "Latest version: $LATEST_VERSION"
+          
+          # If versions are the same, exit
+          if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+            echo "Formula is already up to date!"
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "New version found! Updating formula..."
+          echo "needs_update=true" >> $GITHUB_OUTPUT
+          echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          
+          # Download the tarball
+          TARBALL_PATH="/tmp/tic-tac-term-macos.tar.gz"
+          echo "Downloading $DOWNLOAD_URL to $TARBALL_PATH..."
+          curl -L -o "$TARBALL_PATH" "$DOWNLOAD_URL"
+          
+          # Calculate SHA256
+          SHA256=$(sha256sum "$TARBALL_PATH" | awk '{print $1}')
+          echo "SHA256: $SHA256"
+          
+          # Update the formula
+          sed -i "s|url \".*\"|url \"$DOWNLOAD_URL\"|" $FORMULA_PATH
+          sed -i "s|sha256 \".*\"|sha256 \"$SHA256\"|" $FORMULA_PATH
+          sed -i "s|version \".*\"|version \"$LATEST_VERSION\"|" $FORMULA_PATH
+
+      - name: Commit and push changes
+        if: steps.check-update.outputs.needs_update == 'true'
+        run: |
+          git add Formula/tic-tac-term.rb
+          git commit -m "Update tic-tac-term to ${{ steps.check-update.outputs.new_version }}"
+          git push
