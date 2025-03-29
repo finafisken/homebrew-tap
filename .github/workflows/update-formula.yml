@@ -51,16 +51,16 @@ jobs:
           echo "New version found! Updating formula..."
           echo "needs_update=true" >> $GITHUB_OUTPUT
           echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          
-          # Download the tarball
-          TARBALL_PATH="/tmp/tic-tac-term-macos.tar.gz"
-          echo "Downloading $DOWNLOAD_URL to $TARBALL_PATH..."
-          curl -L -o "$TARBALL_PATH" "$DOWNLOAD_URL"
-          
+
+          # Download the binary
+          BINARY_PATH="/tmp/tic-tac-term-macos"
+          echo "Downloading $DOWNLOAD_URL to $BINARY_PATH..."
+          curl -L -o "$BINARY_PATH" "$DOWNLOAD_URL"
+
           # Calculate SHA256
-          SHA256=$(sha256sum "$TARBALL_PATH" | awk '{print $1}')
+          SHA256=$(sha256sum "$BINARY_PATH" | awk '{print $1}')
           echo "SHA256: $SHA256"
-          
+
           # Update the formula
           sed -i "s|url \".*\"|url \"$DOWNLOAD_URL\"|" $FORMULA_PATH
           sed -i "s|sha256 \".*\"|sha256 \"$SHA256\"|" $FORMULA_PATH
